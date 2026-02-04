@@ -1,35 +1,24 @@
 pipeline {
-  // Tout le pipeline tourne sur un agent Windows. Si tu préfères,
-  // tu peux laisser "any" et ne cibler que le stage Docker avec agent { label 'docker-windows' }.
   agent any
-
   tools {
     jdk   'jdk17'
     maven 'maven'
   }
-
   environment {
-    // ----- SonarCloud -----
-    ORG          = 'zinebmouman'                // organization SonarCloud
-    PROJECT_KEY  = 'resevation_devices'         // projectKey SonarCloud
-    SONAR_TOKEN  = credentials('SONAR_TOKEN3')  // Secret Text
-
+    // ORG          = 'zinebmouman'              // ← Commenté
+    // PROJECT_KEY  = 'resevation_devices'       // ← Commenté
+    // SONAR_TOKEN  = credentials('SONAR_TOKEN3') // ← Commenté
     MAVEN_OPTS   = '-Xmx1024m'
-
-    // ----- Azure Container Registry -----
-    ACR   = 'acrreservation2.azurecr.io'        // loginServer de l'ACR
+    ACR   = 'acrreservation2.azurecr.io'
     IMAGE = 'reservation-backend'
     TAG   = "${env.BUILD_NUMBER}"
   }
-
   stages {
-
     stage('Checkout') {
       steps {
-        git branch: 'main', url: 'https://github.com/zinebmouman/resevation_devices.git'
+        git branch: 'main', url: 'https://github.com/Sabbarso/resevation_devices.git'
       }
     }
-
     stage('Build & Unit Tests (backend)') {
       steps {
         dir('backend') {
@@ -43,24 +32,22 @@ pipeline {
         }
       }
     }
-
-    stage('SonarCloud Analysis (backend)') {
-      steps {
-        dir('backend') {
-          bat """
-            mvn -B -e sonar:sonar ^
-              -Dsonar.projectKey=%PROJECT_KEY% ^
-              -Dsonar.organization=%ORG% ^
-              -Dsonar.host.url=https://sonarcloud.io ^
-              -Dsonar.token=%SONAR_TOKEN%
-          """
-        }
-      }
-    }
-
+    // STAGE SONARCLOUD COMMENTÉ TEMPORAIREMENT
+    // stage('SonarCloud Analysis (backend)') {
+    //   steps {
+    //     dir('backend') {
+    //       bat """
+    //         mvn -B -e sonar:sonar ^
+    //           -Dsonar.projectKey=%PROJECT_KEY% ^
+    //           -Dsonar.organization=%ORG% ^
+    //           -Dsonar.host.url=https://sonarcloud.io ^
+    //           -Dsonar.token=%SONAR_TOKEN%
+    //       """
+    //     }
+    //   }
+    // }
+    
     stage('Build & Push to ACR') {
-      // Si tu veux cibler un autre nœud uniquement pour ce stage :
-      // agent { label 'docker-windows' }
       steps {
         withCredentials([usernamePassword(credentialsId: 'acr-jenkins',
                                           usernameVariable: 'ACR_USER',
@@ -77,7 +64,6 @@ pipeline {
       }
     }
   }
-
   post {
     success {
       echo "Pipeline OK → Image pushed: ${env.ACR}/${env.IMAGE}:${env.TAG}"
