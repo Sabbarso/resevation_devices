@@ -5,7 +5,9 @@ pipeline {
     maven 'maven'
   }
   environment {
-    MAVEN_OPTS   = '-Xmx1024m'
+    MAVEN_OPTS        = '-Xmx1024m'
+    SONAR_PROJECT_KEY = 'reservation-devices'
+    SONAR_PROJECT_NAME = 'Reservation Devices Backend'
     // ACR   = 'acrreservation2.azurecr.io'  // ← Commenté
     // IMAGE = 'reservation-backend'          // ← Commenté
     // TAG   = "${env.BUILD_NUMBER}"          // ← Commenté
@@ -16,7 +18,6 @@ pipeline {
         git branch: 'main', url: 'https://github.com/Sabbarso/resevation_devices.git'
       }
     }
-    //test for webhook
     
     stage('Build & Unit Tests (backend)') {
       steps {
@@ -28,6 +29,33 @@ pipeline {
         always {
           junit allowEmptyResults: true, testResults: 'backend/target/surefire-reports/*.xml'
           archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
+        }
+      }
+    }
+    
+    stage('SonarQube Analysis') {
+      steps {
+        dir('backend') {
+          withSonarQubeEnv('SonarQube') {
+            bat """
+              mvn sonar:sonar ^
+              -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
+              -Dsonar.projectName="%SONAR_PROJECT_NAME%" ^
+              -Dsonar.java.binaries=target/classes ^
+              -Dsonar.sources=src/main/java ^
+              -Dsonar.tests=src/test/java ^
+              -Dsonar.junit.reportPaths=target/surefire-reports ^
+              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Quality Gate') {
+      steps {
+        timeout(time: 5, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
         }
       }
     }
@@ -54,6 +82,8 @@ pipeline {
     success {
       echo "Pipeline OK → Build successful!"
     }
-    failure { echo 'Pipeline KO' }
+    failure { 
+      echo 'Pipeline KO' 
+    }
   }
 }
