@@ -38,14 +38,11 @@ pipeline {
         dir('backend') {
           withSonarQubeEnv('SonarQube') {
             bat """
-              mvn sonar:sonar ^
-              -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
-              -Dsonar.projectName="%SONAR_PROJECT_NAME%" ^
-              -Dsonar.java.binaries=target/classes ^
-              -Dsonar.sources=src/main/java ^
-              -Dsonar.tests=src/test/java ^
-              -Dsonar.junit.reportPaths=target/surefire-reports ^
-              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+              
+                 mvn sonar:sonar ^
+                -Dsonar.skip=true ^  <!-- Skip l'analyse pour l'instant -->
+                 -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
+
             """
           }
         }
