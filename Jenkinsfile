@@ -38,11 +38,10 @@ pipeline {
         dir('backend') {
           withSonarQubeEnv('SonarQube') {
             bat """
-              
-                 mvn sonar:sonar ^
-                -Dsonar.skip=true ^  <!-- Skip l'analyse pour l'instant -->
-                 -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
-
+              mvn sonar:sonar ^
+              -Dsonar.skip=true ^
+              -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
+              -Dsonar.projectName="%SONAR_PROJECT_NAME%"
             """
           }
         }
