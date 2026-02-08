@@ -4,14 +4,18 @@ pipeline {
     jdk   'jdk17'
     maven 'maven'
   }
+  
+  parameters {
+    booleanParam(name: 'RUN_SONARQUBE', defaultValue: false, description: 'Run SonarQube analysis?')
+  }
+  
   environment {
     MAVEN_OPTS        = '-Xmx1024m'
     SONAR_PROJECT_KEY = 'reservation-devices'
     SONAR_PROJECT_NAME = 'Reservation Devices Backend'
-    // ACR   = 'acrreservation2.azurecr.io'  // ← Commenté
-    // IMAGE = 'reservation-backend'          // ← Commenté
-    // TAG   = "${env.BUILD_NUMBER}"          // ← Commenté
+    SONAR_ORGANIZATION = 'sabbarso'  // Votre organisation SonarCloud
   }
+  
   stages {
     stage('Checkout') {
       steps {
@@ -33,26 +37,49 @@ pipeline {
       }
     }
     
+    // SONARQUBE - Uniquement si RUN_SONARQUBE = true
     stage('SonarQube Analysis') {
+      when {
+        expression { params.RUN_SONARQUBE }
+      }
       steps {
         dir('backend') {
           withSonarQubeEnv('SonarQube') {
             bat """
               mvn sonar:sonar ^
-              -Dsonar.skip=true ^
               -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
-              -Dsonar.projectName="%SONAR_PROJECT_NAME%"
+              -Dsonar.projectName="%SONAR_PROJECT_NAME%" ^
+              -Dsonar.organization=%SONAR_ORGANIZATION% ^
+              -Dsonar.java.binaries=target/classes ^
+              -Dsonar.sources=src/main/java ^
+              -Dsonar.tests=src/test/java ^
+              -Dsonar.junit.reportPaths=target/surefire-reports ^
+              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
             """
           }
         }
       }
     }
     
+    // QUALITY GATE - Uniquement si RUN_SONARQUBE = true
     stage('Quality Gate') {
+      when {
+        expression { params.RUN_SONARQUBE }
+      }
       steps {
         timeout(time: 5, unit: 'MINUTES') {
           waitForQualityGate abortPipeline: true
         }
+      }
+    }
+    
+    // MESSAGE SI SONARQUBE SKIPÉ
+    stage('SonarQube Skipped') {
+      when {
+        expression { !params.RUN_SONARQUBE }
+      }
+      steps {
+        echo "SonarQube analysis skipped (RUN_SONARQUBE = false)"
       }
     }
     
@@ -74,6 +101,7 @@ pipeline {
     //   }
     // }
   }
+  
   post {
     success {
       echo "Pipeline OK → Build successful!"
